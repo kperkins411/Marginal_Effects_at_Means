@@ -10,12 +10,9 @@ class MEMs():
     For instance if column average=4.5 and the column contains a mix of 1,3,5,7,9 ints.   The also will select 5
     since thats the closest to 4.5
 
-    makes copy of passed in dataframe, creates a 1 row dataframe (df_avg)  that contains
-    the average for each column. For a particular column, generates vals, allows selection
-    of a range of values spanning col.min() to col.max()
-    Then allows permutation of 1 column at a time in df_avg, Using a single value in vals
-    Uses the row in df_avg (with the new val in column of interest) to predict outcome
-    for each value in vals.
+    makes copy of passed in dataframe,
+    -Construct: creates a 1 row dataframe (df_avg) that contains the average for each column.
+    -getMEM: For a particular column, generates predictions based on df_avg and the permuted column
     """
 
     def find_nearest(self,array, value):
@@ -35,10 +32,12 @@ class MEMs():
         #WHAT TO DO ABOUT CATEGORICAL WITH @ OR $ VALUES? WHAT IS THE MEAN?
         for col in self.df_avg.columns:
             if (self.df_orig[col].dtype == np.int64):
+                #categorical!, set average equal to closest int to the mean of the column
                 vals = df[col].unique()    #get unique values
                 mn = df[col].mean()        #get the mean
                 self.df_avg.at[0, col] = self.find_nearest(vals, mn)
             elif (self.df_orig[col].dtype == np.float64):
+                #float, average is the mean
                 self.df_avg.at[0,col] = df[col].mean()
             else:
                 raise TypeError(f"All input columns must be an integer or a float, column {col} is a {str(self.df_orig[col].dtype)}")
@@ -51,6 +50,7 @@ class MEMs():
         :return: list of (col_val, prediction)
         finds range of column in self.df_orig, create list with number_steps going from range.start to range.end
         runs predictions on self.df_avg with those ranged values
+        If column is categorical the vals selected are chosen from the available categories
         """
 
         vals = self._getRangeList(col, number_steps)

@@ -7,7 +7,7 @@ from mem import MEMs
 class mod():
     def predict(self,row):
         """
-
+        a dummy model with a predict function
         :param val: assumes single row dataframe
         :return:
         """
