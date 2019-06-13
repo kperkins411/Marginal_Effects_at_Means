@@ -61,18 +61,33 @@ class MEMs():
 
         #get the average prediction
         df_avgtmp = self.df_avg.copy()
-        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
+        p = model.predict(df_avgtmp)
+        preds.append((df_avgtmp.at[0,col], p))
 
-        #assumme we can add 1
-        add_amt = 1
+        #lets see if we are dealing with a binary value
+        if self.df_orig[col].nunique() == 2:
+            #have binary value
+            if df_avgtmp.at[0, col] == self.df_orig[col].max():
+                df_avgtmp.at[0, col] = self.df_orig[col].min()
+            else:
+                df_avgtmp.at[0, col] = self.df_orig[col].max()
+        else:
+            #continuous variable
+            # assumme we can add 1
+            add_amt = 1
 
-        #if the following is true then we go back one
-        if df_avgtmp.at[0,col] == self.df_orig[col].max():
-            add_amt =- 1
+            #if the following is true then we go back one
+            if df_avgtmp.at[0,col] == self.df_orig[col].max():
+                add_amt =- 1
 
-        # lets do the preds
-        df_avgtmp.at[0, col] = df_avgtmp.at[0, col]+add_amt
-        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
+            # lets do the preds
+            df_avgtmp.at[0, col] = df_avgtmp.at[0, col] + add_amt
+
+            if (df_avgtmp.at[0,col])  > self.df_orig[col].max():
+                print(f" PROBLEM, STDDEV EXCEEDS MAX VAL, {df_avgtmp.at[0,col]} > {self.df_orig[col].max()}")
+
+        p = model.predict(df_avgtmp)
+        preds.append((df_avgtmp.at[0,col], p))
 
         return preds
 
