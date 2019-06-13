@@ -20,6 +20,13 @@ class TestgetMem(TestCase):
 
 class TestMEMs(TestCase):
     def setUp(self):
+        self.dfo_binary = pd.DataFrame([[0, 0, 0], [1, 1, 1], [0, 0, 0], [1, 1, 1], [1, 1, 1]],
+                                          columns=list('abc'))
+        self.dfe_binary = pd.DataFrame([[0, 0, 0], [1, 1, 1], [0, 0, 0], [1, 1, 1]],
+                                       columns=list('abc'))
+        self.dfe_binary1 = pd.DataFrame([[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0]],
+                                      columns=list('abc'))
+
         self.dfo_scrambled = pd.DataFrame([[9,10,11],[6,7,8],[3,4,5],[12,13,14],[0,1,2]], columns=list('abc'))
         self.dfe_scrambled = pd.DataFrame([[9, 10, 11], [6, 7, 8], [12, 13, 14], [0, 1, 2]],columns=list('abc'))
 
@@ -34,6 +41,36 @@ class TestMEMs(TestCase):
         self.df2f = pd.DataFrame(np.linspace(1.0, 10.0,15).reshape(5, 3), columns=list('abc'))
         self.df11f = pd.DataFrame(np.linspace(1.0, 10.0,60).reshape(20, 3), columns=list('abc'))
         self.df22f = pd.DataFrame(np.linspace(1.0, 10.0,63).reshape(21, 3), columns=list('abc'))
+
+    def test_getMEM_avgplusone(self):
+        m = mod()
+
+
+        # small even
+        dfc = MEMs(self.dfo_binary)
+        preds = dfc.getMEM_avgplusone(m, 'b')
+        self.assertTrue(preds==[(1,6.0),(0,4.0)])
+
+        dfc = MEMs(self.dfe_binary)
+        preds = dfc.getMEM_avgplusone(m, 'b')
+        self.assertTrue(preds == [(0, 0.0), (1, 2.0)])
+
+        dfc = MEMs(self.dfo_scrambled)
+        preds = dfc.getMEM_avgplusone(m, 'b')
+        self.assertTrue(preds == [(7, 42.0), (8, 44.0)])
+
+        dfc = MEMs(self.dfe_scrambled)
+        preds = dfc.getMEM_avgplusone(m, 'b')
+        self.assertTrue(preds == [(7, 42.0), (8, 44.0)])
+
+    def test_handle_even_int_column_binary_choice(self):
+        # small even
+        dfc = MEMs(self.dfo_binary)
+        self.assertTrue(dfc.df_avg.iloc[0, 0] == 1)
+        dfc = MEMs(self.dfe_binary)
+        self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
+        dfc = MEMs(self.dfe_binary1)
+        self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
 
     def test_handle_even_int_column_mean_choice(self):
         # small even

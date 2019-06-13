@@ -29,7 +29,7 @@ class MEMs():
         self.df_avg = pd.DataFrame(data=None,columns=df.columns, index=[0])  #create empty dataframe with same columns
 
         #average df, put value into appropriate column of df_avg
-        #WHAT TO DO ABOUT CATEGORICAL WITH @ OR $ VALUES? WHAT IS THE MEAN?
+        #WHAT TO DO ABOUT CATEGORICAL WITH 2 OR 4 VALUES? WHAT IS THE MEAN?
         for col in self.df_avg.columns:
             if (self.df_orig[col].dtype == np.int64):
                 #categorical!, set average equal to closest int to the mean of the column
@@ -41,6 +41,40 @@ class MEMs():
                 self.df_avg.at[0,col] = df[col].mean()
             else:
                 raise TypeError(f"All input columns must be an integer or a float, column {col} is a {str(self.df_orig[col].dtype)}")
+
+    def getMEM_avgplusone(self,model, col):
+        """
+        Gets predictions of avg + 1
+        :param model: random forest
+        :param col: which column to operate on, string (ex. "b") or index (ex. 0)
+        :param number_steps: how many iterations
+        :return: list of (col_val, prediction)
+        finds range of column in self.df_orig, create list with number_steps going from range.start to range.end
+        runs predictions on self.df_avg with those ranged values
+        If column is categorical the vals selected are chosen from the available categories
+        """
+        # if its an int get the string column name
+        if (type(col) is int):
+            col = self.df_orig.columns[col]
+
+        preds=[]
+
+        #get the average prediction
+        df_avgtmp = self.df_avg.copy()
+        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
+
+        #assumme we can add 1
+        add_amt = 1
+
+        #if the following is true then we go back one
+        if df_avgtmp.at[0,col] == self.df_orig[col].max():
+            add_amt =- 1
+
+        # lets do the preds
+        df_avgtmp.at[0, col] = df_avgtmp.at[0, col]+add_amt
+        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
+
+        return preds
 
     def getMEM(self,model, col,number_steps=10.0 ):
         """
