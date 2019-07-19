@@ -2,6 +2,7 @@ import pandas as pd
 from numpy.random import randint
 import numpy as np
 
+
 class MEMs():
     """
     Marginal Effects At Means - used to get average value for all columns and then permute 1 column to see what model predicts
@@ -15,68 +16,93 @@ class MEMs():
     -getMEM: For a particular column, generates predictions based on df_avg and the permuted column
     """
 
-    def find_nearest(self,array, value):
+    def find_nearest(self, array, value):
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
-    def __init__(self,df):
+    def __init__(self, df, verbose=False):
         '''
         takes in a dataframe, creates a copy with single row, averages each df column and puts it in copys column
         :param df: dataframe, numeric
         '''
         self.df_orig = df
-        self.df_avg = pd.DataFrame(data=None,columns=df.columns, index=[0])  #create empty dataframe with same columns
+        self.df_avg = pd.DataFrame(data=None, columns=df.columns, index=[0])  # create empty dataframe with same columns
+        self.verbose=verbose
 
-        #average df, put value into appropriate column of df_avg
-        #WHAT TO DO ABOUT CATEGORICAL WITH 2 OR 4 VALUES? WHAT IS THE MEAN?
+        # average df, put value into appropriate column of df_avg
+        # WHAT TO DO ABOUT CATEGORICAL WITH 2 OR 4 VALUES? WHAT IS THE MEAN?
+        #         for col in self.df_avg.columns:
+        #             if (self.df_orig[col].dtype == np.int64):
+        #                 #categorical!, set average equal to closest int to the mean of the column
+        #                 vals = df[col].unique()    #get unique values
+        #                 mn = df[col].mean()        #get the mean
+        #                 self.df_avg.at[0, col] = self.find_nearest(vals, mn)
+        #             elif (self.df_orig[col].dtype == np.float64):
+        #                 #float, average is the mean
+        #                 self.df_avg.at[0,col] = df[col].mean()
+        #             else:
+        #                 raise TypeError(f"All input columns must be an integer or a float, column {col} is a {str(self.df_orig[col].dtype)}")
+
         for col in self.df_avg.columns:
-            if (self.df_orig[col].dtype == np.int64):
-                #categorical!, set average equal to closest int to the mean of the column
-                vals = df[col].unique()    #get unique values
-                mn = df[col].mean()        #get the mean
-                self.df_avg.at[0, col] = self.find_nearest(vals, mn)
-            elif (self.df_orig[col].dtype == np.float64):
-                #float, average is the mean
-                self.df_avg.at[0,col] = df[col].mean()
-            else:
-                raise TypeError(f"All input columns must be an integer or a float, column {col} is a {str(self.df_orig[col].dtype)}")
+            self.df_avg.at[0, col] = df[col].mean()
 
-    def getMEM_avgplusone(self,model, col):
+    def getMEM_avg(self, model):
+        # get the average prediction
+        return model.predict_proba(self.df_avg)
+
+
+    def getMEM_avgplusoneSimple(self, model, col):
         """
         Gets predictions of avg + 1
         :param model: random forest
         :param col: which column to operate on, string (ex. "b") or index (ex. 0)
-        :param number_steps: how many iterations
         :return: list of (col_val, prediction)
         finds range of column in self.df_orig, create list with number_steps going from range.start to range.end
         runs predictions on self.df_avg with those ranged values
-        If column is categorical the vals selected are chosen from the available categories
+
         """
         # if its an int get the string column name
         if (type(col) is int):
             col = self.df_orig.columns[col]
 
-        preds=[]
+        preds = []
 
-        #get the average prediction
+        # get the average prediction
         df_avgtmp = self.df_avg.copy()
-        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
 
-        #assumme we can add 1
-        add_amt = 1
+        # lets see if we are dealing with a binary value
+        if self.df_orig[col].nunique() == 2:
+            #if binary, predict min and then max value
+            df_avgtmp.at[0, col] = self.df_orig[col].min()
+            p1 = model.predict_proba(df_avgtmp)
+            preds.append((df_avgtmp.at[0, col], p1[0, 1]))
 
-        #if the following is true then we go back one
-        if df_avgtmp.at[0,col] == self.df_orig[col].max():
-            add_amt =- 1
+            df_avgtmp.at[0, col] = self.df_orig[col].max()
+            p2 = model.predict_proba(df_avgtmp)
+            preds.append((df_avgtmp.at[0, col], p2[0, 1]))
+            if (self.verbose): print(f'averageprob={p1} plus1prob={p2}')
 
-        # lets do the preds
-        df_avgtmp.at[0, col] = df_avgtmp.at[0, col]+add_amt
-        preds.append((df_avgtmp.at[0,col], model.predict(df_avgtmp)))
+        else:
+            # continuous variable
+            # assumme we can add 1
+            add_amt = 1
+
+            p1 = model.predict_proba(df_avgtmp)
+            preds.append((df_avgtmp.at[0, col], p1[0, 1]))
+
+            df_avgtmp.at[0, col] = df_avgtmp.at[0, col] + 1
+            p2 = model.predict_proba(df_avgtmp)
+            preds.append((df_avgtmp.at[0, col], p2[0, 1]))
+            if (self.verbose): print(f'averageprob={p1} plus1prob={p2}')
 
         return preds
 
-    def getMEM(self,model, col,number_steps=10.0 ):
+    def getMEM_avgplusoneSimple_Probability_Change(self, model, col):
+        preds = self.getMEM_avgplusoneSimple(model, col)
+        return preds[1][1] - preds[0][1]
+
+    def getMEM(self, model, col, number_steps=10.0):
         """
         :param model: random forest
         :param col: which column to operate on, string (ex. "b") or index (ex. 0)
@@ -88,16 +114,16 @@ class MEMs():
         """
 
         vals = self._getRangeList(col, number_steps)
-        preds=[]
+        preds = []
 
-        #if its an int get the string column name
+        # if its an int get the string column name
         if (type(col) is int):
             col = self.df_orig.columns[col]
 
-        #run predictor for every value in vals over the average of the other columns
+        # run predictor for every value in vals over the average of the other columns
         for val in vals:
             df_avgtmp = self.df_avg.copy()
-            df_avgtmp.at[0, col]=val
+            df_avgtmp.at[0, col] = val
             preds.append((val, model.predict(df_avgtmp)))
         return preds
 
@@ -110,29 +136,28 @@ class MEMs():
         :return: list of values, uniformly distributed between start and finish
         """
         if (type(col) is int):
-            vals = self.df_orig.iloc[:,col]
+            vals = self.df_orig.iloc[:, col]
         else:
-            vals=self.df_orig[col]
+            vals = self.df_orig[col]
 
         unique_vals = np.sort(vals.unique())
         tpe = unique_vals.dtype
         luv = len(unique_vals)
 
-
         # choose smaller of the 2
         if (luv < number_samples):
             number_samples = luv
 
-        res=[]
-        if ( tpe == 'int64'):
-            #its categorical
-            step_size= int(luv / (number_samples - 1))
-            res= unique_vals[0:luv:step_size]
-            if (len(res)<number_samples):
-                res = np.append(res,[-1])
-            elif (len(res)>number_samples):
-                res=res[:number_samples]
-            res[len(res)-1]=vals.max()
+        res = []
+        if (tpe == 'int64'):
+            # its categorical
+            step_size = int(luv / (number_samples - 1))
+            res = unique_vals[0:luv:step_size]
+            if (len(res) < number_samples):
+                res = np.append(res, [-1])
+            elif (len(res) > number_samples):
+                res = res[:number_samples]
+            res[len(res) - 1] = vals.max()
         elif (tpe == 'float64'):
             res = np.linspace(vals.min(), vals.max(), number_samples)
 

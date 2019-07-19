@@ -4,6 +4,7 @@ from numpy.random import randint
 import numpy as np
 from mem import MEMs
 
+
 class mod():
     def predict(self,row):
         """
@@ -12,6 +13,19 @@ class mod():
         :return:
         """
         return row.sum(axis=1)[0]*2
+
+    def predict_proba(self, row):
+        """
+        a dummy model with a predict function
+        :param val: assumes single row dataframe
+        :return:
+        """
+        mn = row.mean(axis=1)[0]
+        mx= row.max(axis=1)[0]
+        prob0=mn/mx
+        res=np.asarray([prob0, 1-prob0])
+        res = np.expand_dims(res, axis=0)
+        return res
 
 class TestgetMem(TestCase):
     def setUp(self):
@@ -45,70 +59,23 @@ class TestMEMs(TestCase):
     def test_getMEM_avgplusone(self):
         m = mod()
 
-
         # small even
         dfc = MEMs(self.dfo_binary)
-        preds = dfc.getMEM_avgplusone(m, 'b')
-        self.assertTrue(preds==[(1,6.0),(0,4.0)])
+        preds = dfc.getMEM_avgplusoneSimple(m, 'b')
+        self.assertAlmostEqual(preds[0][1],0.333333,places=5 )
+        self.assertAlmostEqual(preds[1][1], 0.266666, places=5)
+
 
         dfc = MEMs(self.dfe_binary)
-        preds = dfc.getMEM_avgplusone(m, 'b')
-        self.assertTrue(preds == [(0, 0.0), (1, 2.0)])
+        preds = dfc.getMEM_avgplusoneSimple(m, 'b')
+        self.assertAlmostEqual(preds[0][1], 0.333333, places=5)
+        self.assertAlmostEqual(preds[1][1], 0.333333, places=5)
 
         dfc = MEMs(self.dfo_scrambled)
-        preds = dfc.getMEM_avgplusone(m, 'b')
-        self.assertTrue(preds == [(7, 42.0), (8, 44.0)])
+        preds = dfc.getMEM_avgplusoneSimple(m, 'b')
+        self.assertAlmostEqual(preds[0][1], 0.125)
+        self.assertAlmostEqual(preds[1][1], 0.083333, places=5)
 
-        dfc = MEMs(self.dfe_scrambled)
-        preds = dfc.getMEM_avgplusone(m, 'b')
-        self.assertTrue(preds == [(7, 42.0), (8, 44.0)])
-
-    def test_handle_even_int_column_binary_choice(self):
-        # small even
-        dfc = MEMs(self.dfo_binary)
-        self.assertTrue(dfc.df_avg.iloc[0, 0] == 1)
-        dfc = MEMs(self.dfe_binary)
-        self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
-        dfc = MEMs(self.dfe_binary1)
-        self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
-
-    def test_handle_even_int_column_mean_choice(self):
-        # small even
-        dfc = MEMs(self.df111)
-        a=dfc.df_avg.iloc[0, 0]
-        self.assertTrue(dfc.df_avg.iloc[0,0]==1)
-        self.assertTrue(dfc.df_avg.iloc[0, 1] == 11)
-        self.assertTrue(dfc.df_avg.iloc[0, 2] == 5)
-
-    def test_getMEM_small(self):
-        # small even
-        dfc = MEMs(self.df1)
-        m=mod()
-        preds = dfc.getMEM(m,'b')
-        self.assertTrue(preds== [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
-        self.assertRaises(KeyError, dfc._getRangeList, 'A', 10) #A does not exist
-        self.assertRaises(KeyError, dfc._getRangeList, 'd', 10) #d "
-        preds = dfc.getMEM(m, 1)
-        self.assertTrue(preds== [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
-
-        # small odd
-        dfc = MEMs(self.df2)
-        m = mod()
-        self.assertRaises(KeyError, dfc._getRangeList, 'A', 10) #A does not exist
-        self.assertRaises(KeyError, dfc._getRangeList, 'd', 10) #d "
-        preds = dfc.getMEM(m,'b')
-        self.assertTrue(preds== [(1, 30.0), (4, 36.0), (7, 42.0), (10, 48.0),(13,54.0)])
-
-        #scrambled
-        dfc = MEMs(self.dfo_scrambled)
-        m=mod()
-        preds = dfc.getMEM(m,'b')
-        self.assertTrue(preds== [(1, 30.0), (4, 36.0), (7, 42.0), (10, 48.0),(13,54.0)])
-
-        dfc = MEMs(self.dfe_scrambled)
-        m = mod()
-        preds = dfc.getMEM(m, 'b')
-        self.assertTrue(preds == [(1, 30.0), (7, 42.0), (10, 48.0), (13, 54.0)])
 
 
     def test_getMEM_large(self):
@@ -118,9 +85,9 @@ class TestMEMs(TestCase):
         self.assertRaises(KeyError, dfc._getRangeList, 'd', 10)  # d "
 
         preds = dfc.getMEM(m, 'b')
-        self.assertTrue(preds == [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
+        self.assertTrue(preds == [(1, 24.0), (4, 30.0), (7, 36.0), (10, 42.0)])
         preds = dfc.getMEM(m, 1)
-        self.assertTrue(preds == [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
+        self.assertTrue(preds == [(1, 24.0), (4, 30.0), (7, 36.0), (10, 42.0)])
         pass  # get first column
 
     def test__getRangeList_ieven(self):
@@ -209,4 +176,50 @@ class TestMEMs(TestCase):
         l = sf._getRangeList(self.col, 2)
         self.check1(l, 2)
 
+# def test_handle_even_int_column_binary_choice(self):
+    #     # small even
+    #     dfc = MEMs(self.dfo_binary)
+    #     self.assertTrue(dfc.df_avg.iloc[0, 0] == 1)
+    #     dfc = MEMs(self.dfe_binary)
+    #     self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
+    #     dfc = MEMs(self.dfe_binary1)
+    #     self.assertTrue(dfc.df_avg.iloc[0, 0] == 0)
+    #
+    # def test_handle_even_int_column_mean_choice(self):
+    #     # small even
+    #     dfc = MEMs(self.df111)
+    #     a=dfc.df_avg.iloc[0, 0]
+    #     self.assertTrue(dfc.df_avg.iloc[0,0]==1)
+    #     self.assertTrue(dfc.df_avg.iloc[0, 1] == 11)
+    #     self.assertTrue(dfc.df_avg.iloc[0, 2] == 5)
+
+    # def test_getMEM_small(self):
+    #     # small even
+    #     dfc = MEMs(self.df1)
+    #     m=mod()
+    #     preds = dfc.getMEM(m,'b')
+    #     self.assertTrue(preds== [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
+    #     self.assertRaises(KeyError, dfc._getRangeList, 'A', 10) #A does not exist
+    #     self.assertRaises(KeyError, dfc._getRangeList, 'd', 10) #d "
+    #     preds = dfc.getMEM(m, 1)
+    #     self.assertTrue(preds== [(1, 18.0), (4, 24.0), (7, 30.0), (10, 36.0)])
+    #
+    #     # small odd
+    #     dfc = MEMs(self.df2)
+    #     m = mod()
+    #     self.assertRaises(KeyError, dfc._getRangeList, 'A', 10) #A does not exist
+    #     self.assertRaises(KeyError, dfc._getRangeList, 'd', 10) #d "
+    #     preds = dfc.getMEM(m,'b')
+    #     self.assertTrue(preds== [(1, 30.0), (4, 36.0), (7, 42.0), (10, 48.0),(13,54.0)])
+    #
+    #     #scrambled
+    #     dfc = MEMs(self.dfo_scrambled)
+    #     m=mod()
+    #     preds = dfc.getMEM(m,'b')
+    #     self.assertTrue(preds== [(1, 30.0), (4, 36.0), (7, 42.0), (10, 48.0),(13,54.0)])
+    #
+    #     dfc = MEMs(self.dfe_scrambled)
+    #     m = mod()
+    #     preds = dfc.getMEM(m, 'b')
+    #     self.assertTrue(preds == [(1, 30.0), (7, 42.0), (10, 48.0), (13, 54.0)])
 
